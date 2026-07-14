@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1783696866217,
+      "tag": "0000_hesitant_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1783784343743,
+      "tag": "0001_modern_rocket_racer",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1783954864079,
+      "tag": "0002_worthless_eternals",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme {
+  --color-primary: #006A59;
+  --color-secondary: #00463C;
+  --color-accent: #003932;
+  --color-soft: #002A27;
+  --color-dark: #001D1C;
+
+  /* Light Backgrounds */
+  --color-bg-light: #F4F8F7;
+  --color-bg-soft: #EAF2F0;
+  --color-bg-muted: #DCE8E5;
+
+  /* Fonts */
+  --text-xs: 12px;   /* small labels, captions */
+  --text-sm: 14px;   /* secondary text */
+  --text-md: 16px;   /* body text (default) */
+  --text-lg: 18px;   /* large body / card titles */
+  --text-xl: 20px;   /* section headings */
+  --text-2xl: 24px;  /* page headings */
+  --text-3xl: 30px;  /* hero titles */
+  --text-4xl: 36px;  /* landing headers */
+  --text-5xl: 48px;  /* big hero / marketing */
+
+}
+
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
