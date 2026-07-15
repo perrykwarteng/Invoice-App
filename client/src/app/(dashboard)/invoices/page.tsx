@@ -1419,6 +1419,7 @@ export default function Invoice() {
                             handleSummaryChange("vatPercentage", e.target.value)
                           }
                         />
+                        
                         <CustomInput
                           label="NHIL %"
                           type="number"
