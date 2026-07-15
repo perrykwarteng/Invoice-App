@@ -43,7 +43,6 @@ export const createInvoice = async (req: Request, res: Response) => {
     invoiceItem,
   } = req.body;
   const file: any = req.files as Express.Multer.File[];
-  console.log(invoiceItem);
 
   if (!authUser.organisationId)
     return res.status(400).json({ message: "Sorry no organisation found" });
