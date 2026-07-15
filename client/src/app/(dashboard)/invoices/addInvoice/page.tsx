@@ -583,7 +583,7 @@ export default function AddInvoice() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-full px-3 sm:px-0">
+      <div className="min-h-full">
         <Link
           href="/invoices"
           className="text-accent hover:underline transition-all duration-150 text-sm sm:text-base"

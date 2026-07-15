@@ -21,7 +21,9 @@ export default function Header({ setMobileOpen }: HeaderProps) {
   const { userInfo } = useUserStore();
   const greeting = useGreeting();
 
-  const profileImage = userData?.profilePic?.imageUrl ?? "/default-avatar.png";
+  const profileImage =
+    userData?.profilePic?.imageUrl ??
+    "https://res.cloudinary.com/dipfghq3k/image/upload/v1784129032/user_fhtory.png";
 
   return (
     <header className="bg-white px-4 md:px-6 border-b border-gray-200 h-20">
@@ -51,7 +53,7 @@ export default function Header({ setMobileOpen }: HeaderProps) {
                   alt="Profile"
                   width={40}
                   height={40}
-                  className="rounded-full"
+                  className="rounded-full object-cover object-top w-full h-full"
                 />
               ) : (
                 <User />

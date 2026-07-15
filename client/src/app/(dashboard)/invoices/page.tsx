@@ -932,17 +932,19 @@ export default function Invoice() {
                   <Pencil className="w-3.5 h-3.5" />
                   Edit
                 </button>
-                <button
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md
+                {userRole !== "staff" && (
+                  <button
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md
                   bg-red-50 text-red-600 hover:bg-red-100 transition"
-                  onClick={() => {
-                    setOpenConfirm(true);
-                    setID(invoice.id);
-                  }}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete
-                </button>
+                    onClick={() => {
+                      setOpenConfirm(true);
+                      setID(invoice.id);
+                    }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
+                )}
               </div>
             )}
           />
@@ -1419,7 +1421,7 @@ export default function Invoice() {
                             handleSummaryChange("vatPercentage", e.target.value)
                           }
                         />
-                        
+
                         <CustomInput
                           label="NHIL %"
                           type="number"

@@ -17,6 +17,7 @@ import { useMutation } from "@tanstack/react-query";
 import { onLogout } from "@/services/auth";
 import { toast } from "sonner";
 import { useUserStore } from "@/store/useUserStore";
+import { ConfirmationModal } from "../ui/confirmationModal";
 
 interface SidebarProps {
   mobileOpen: boolean;
@@ -64,6 +65,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
   const route = useRouter();
 
   const [collapseNav, setCollapseNav] = useState(false);
+  const [openLogout, setOpenLogout] = useState(false);
 
   const { mutate: LogoutMutate, isPending } = useMutation({
     mutationKey: ["Logout"],
@@ -197,7 +199,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
         >
           <button
             disabled={isPending}
-            onClick={() => LogoutMutate()}
+            onClick={() => setOpenLogout(true)}
             className="
               w-full
               rounded-xl
@@ -216,6 +218,14 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
           </button>
         </div>
       </aside>
+
+      <ConfirmationModal
+        open={openLogout}
+        title="Log Out"
+        message="Are you sure you want to log out?"
+        onConfirm={() => LogoutMutate()}
+        onCancel={() => setOpenLogout(false)}
+      />
     </>
   );
 }

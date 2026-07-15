@@ -1,5 +1,5 @@
 import { api } from "@/lib/axois";
-import { imageUrls, OrgSettingsType, PaymentMethod } from "@/types/types";
+import { OrgSettingsType, PaymentMethod } from "@/types/types";
 import { AxiosError } from "axios";
 
 export const getSettings = async (): Promise<OrgSettingsType> => {

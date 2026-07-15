@@ -592,7 +592,7 @@ export async function generateInvoicePDF(
       size?: number;
     } = {},
   ) => {
-    doc.setFont("helvetica", opts.bold ? "bold" : "normal");
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(opts.size ?? 10);
     doc.setTextColor(70, 70, 70);
     doc.text(label, MARGIN, y);

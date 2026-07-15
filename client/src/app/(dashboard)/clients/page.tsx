@@ -12,6 +12,7 @@ import {
   editClient,
   getClient,
 } from "@/services/client";
+import { useUserStore } from "@/store/useUserStore";
 import { ClientResponseType, ClientType } from "@/types/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DiamondPlus, Pencil, Trash2 } from "lucide-react";
@@ -20,7 +21,8 @@ import { toast } from "sonner";
 
 export default function Clients() {
   const queryClient = useQueryClient();
-
+  const { userInfo } = useUserStore();
+  const userRole = userInfo.user.role;
   const { data: clientData = [], isLoading } = useQuery({
     queryKey: ["Clients"],
     queryFn: getClient,
@@ -180,13 +182,15 @@ export default function Clients() {
                   <Pencil className="w-3.5 h-3.5" />
                   Edit
                 </button>
-                <button
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition"
-                  onClick={() => openDeleteConfirm(client.id)}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete
-                </button>
+                {userRole !== "staff" && (
+                  <button
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition"
+                    onClick={() => openDeleteConfirm(client.id)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
+                )}
               </div>
             )}
           />
