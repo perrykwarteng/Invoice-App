@@ -3,11 +3,18 @@ import type { ClientType, imageUrls, PaymentMethod } from "@/types/types";
 
 export type PdfImageSource = File | imageUrls | string | null;
 
+export interface PdfSubItem {
+  id: string;
+  subItemName: string;
+  subItemPrice: number;
+}
+
 export interface PdfInvoiceItem {
   id: string;
   itemName: string;
   quantity: number;
   unitPrice: number;
+  subItems?: PdfSubItem[];
 }
 
 export interface PdfCompanySnapshot {
@@ -477,6 +484,7 @@ export async function generateInvoicePDF(
       total: MARGIN + CONTENT_W - 2,
     };
     const rowH = 7;
+    const subRowH = 5;
 
     const drawTableHeader = () => {
       doc.setFillColor(ar, ag, ab);
@@ -532,6 +540,38 @@ export async function generateInvoicePDF(
         );
         doc.setFont("helvetica", "normal");
         y += rowH;
+
+        const visibleSubItems = (item.subItems ?? []).filter(
+          (sub) => sub.subItemName.trim() !== "",
+        );
+
+        if (visibleSubItems.length > 0) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(130, 130, 130);
+
+          visibleSubItems.forEach((sub) => {
+            y = ensureSpace(y, subRowH + 1);
+            if (justBrokePage) {
+              drawTableHeader();
+            }
+            const subLines = doc.splitTextToSize(
+              `- ${sub.subItemName}`,
+              cols.qty - cols.item - 6,
+            );
+            doc.text(subLines[0], cols.item + 5, y + 3.5);
+            doc.text(
+              formatMoney(sub.subItemPrice, form.currency),
+              cols.total,
+              y + 3.5,
+              { align: "right" },
+            );
+            y += subRowH;
+          });
+
+          doc.setFontSize(9);
+          doc.setTextColor(ar, ag, ab);
+        }
       });
     }
     y += 4;

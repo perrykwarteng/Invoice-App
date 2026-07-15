@@ -47,11 +47,18 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+export type FormSubItem = {
+  id: string;
+  subItemName: string;
+  subItemPrice: number;
+};
+
 export type FormInvoiceItem = {
   id: string;
   itemName: string;
   quantity: number;
   unitPrice: number;
+  subItems?: FormSubItem[];
 };
 
 export const CURRENCIES = ["GHS", "USD", "EUR", "GBP"];
@@ -62,6 +69,15 @@ export const makeEmptyItem = (): FormInvoiceItem => ({
   quantity: 1,
   unitPrice: 0,
 });
+
+export const makeEmptySubItem = (): FormSubItem => ({
+  id: crypto.randomUUID(),
+  subItemName: "",
+  subItemPrice: 0,
+});
+
+export const getSubItemsTotal = (subItems: FormSubItem[] = []): number =>
+  subItems.reduce((sum, sub) => sum + sub.subItemPrice, 0);
 
 const DEFAULT_TERMS =
   "Payment of Service should be made in Cash / Cheque / Bank Deposit Transfer:";
@@ -230,10 +246,18 @@ function buildInvoiceFormData(
   fd.append(
     "invoiceItem",
     JSON.stringify(
-      items.map(({ itemName, quantity, unitPrice }) => ({
+      items.map(({ itemName, quantity, unitPrice, subItems }) => ({
         itemName,
         quantity,
         unitPrice,
+        ...(subItems
+          ? {
+              subItems: subItems.map(({ subItemName, subItemPrice }) => ({
+                subItemName,
+                subItemPrice,
+              })),
+            }
+          : {}),
       })),
     ),
   );
@@ -370,6 +394,13 @@ export default function Invoice() {
             itemName: String(it.itemName),
             quantity: Number(it.quantity),
             unitPrice: Number(it.unitPrice),
+            subItems: (it as any).subItems?.length
+              ? (it as any).subItems.map((sub: any) => ({
+                  id: sub.id ? String(sub.id) : crypto.randomUUID(),
+                  subItemName: String(sub.subItemName),
+                  subItemPrice: Number(sub.subItemPrice),
+                }))
+              : undefined,
           }))
         : [makeEmptyItem()],
     );
@@ -444,15 +475,15 @@ export default function Invoice() {
     value: string,
   ) => {
     setItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              [field]:
-                field === "itemName" ? value : Math.max(0, Number(value)),
-            }
-          : item,
-      ),
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        if (field === "unitPrice" && item.subItems) return item;
+
+        return {
+          ...item,
+          [field]: field === "itemName" ? value : Math.max(0, Number(value)),
+        };
+      }),
     );
   };
 
@@ -462,6 +493,84 @@ export default function Invoice() {
     setItems((prev) =>
       prev.length === 1 ? prev : prev.filter((it) => it.id !== itemId),
     );
+
+  const toggleItemSubItems = (itemId: string) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+
+        if (item.subItems) {
+          const { subItems, ...rest } = item;
+          return rest;
+        }
+
+        const nextSubItems = [makeEmptySubItem()];
+        return {
+          ...item,
+          subItems: nextSubItems,
+          unitPrice: getSubItemsTotal(nextSubItems),
+        };
+      }),
+    );
+  };
+
+  const addSubItem = (itemId: string) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        const nextSubItems = [...(item.subItems ?? []), makeEmptySubItem()];
+        return {
+          ...item,
+          subItems: nextSubItems,
+          unitPrice: getSubItemsTotal(nextSubItems),
+        };
+      }),
+    );
+  };
+
+  const removeSubItem = (itemId: string, subItemId: string) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId || !item.subItems) return item;
+        if (item.subItems.length === 1) return item;
+        const nextSubItems = item.subItems.filter((s) => s.id !== subItemId);
+        return {
+          ...item,
+          subItems: nextSubItems,
+          unitPrice: getSubItemsTotal(nextSubItems),
+        };
+      }),
+    );
+  };
+
+  const handleSubItemChange = (
+    itemId: string,
+    subItemId: string,
+    field: keyof Omit<FormSubItem, "id">,
+    value: string,
+  ) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId || !item.subItems) return item;
+
+        const nextSubItems = item.subItems.map((sub) =>
+          sub.id === subItemId
+            ? {
+                ...sub,
+                [field]:
+                  field === "subItemName" ? value : Math.max(0, Number(value)),
+              }
+            : sub,
+        );
+
+        return {
+          ...item,
+          subItems: nextSubItems,
+          unitPrice: getSubItemsTotal(nextSubItems),
+        };
+      }),
+    );
+  };
 
   const togglePaymentMethod = (method: PaymentMethod) => {
     setCompanySnapshot((prev) => {
@@ -601,7 +710,7 @@ export default function Invoice() {
   };
 
   const logoSrc = getLogoSrc(companySnapshot.logo);
-  
+
   const letterHeadHeaderSrc = getAssetSrc(
     invoiceCustomSettings.letterHeadHeaderImg,
   );
@@ -871,7 +980,6 @@ export default function Invoice() {
             });
             setOpenDownloadConfrim(false);
           } catch (err) {
-            console.error(err);
             toast.error("Failed to generate PDF. Please try again.");
           } finally {
             setDownloadingPdf(false);
@@ -1118,74 +1226,165 @@ export default function Invoice() {
                     <div className="space-y-3">
                       {items.map((item) => {
                         const lineTotal = item.quantity * item.unitPrice;
+                        const hasSubItems = Boolean(item.subItems);
                         return (
-                          <div
-                            key={item.id}
-                            className="grid grid-cols-1 sm:grid-cols-[1fr_100px_140px_140px_40px] gap-3 items-center border border-accent/15 rounded-md p-3 sm:border-0 sm:p-0"
-                          >
-                            <CustomInput
-                              type="text"
-                              id={`itemName`}
-                              placeholder="Item or service name"
-                              value={item.itemName}
-                              onChange={(e: any) =>
-                                handleItemChange(
-                                  item.id,
-                                  "itemName",
-                                  e.target.value,
-                                )
-                              }
-                            />
+                          <div key={item.id} className="space-y-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-[1fr_100px_140px_140px_40px] gap-3 items-center border border-accent/15 rounded-md p-3 sm:border-0 sm:p-0">
+                              <CustomInput
+                                type="text"
+                                id={`itemName`}
+                                placeholder="Item or service name"
+                                value={item.itemName}
+                                onChange={(e: any) =>
+                                  handleItemChange(
+                                    item.id,
+                                    "itemName",
+                                    e.target.value,
+                                  )
+                                }
+                              />
 
-                            <CustomInput
-                              type="number"
-                              id={`quantity`}
-                              placeholder="1"
-                              value={item.quantity}
-                              onChange={(e: any) =>
-                                handleItemChange(
-                                  item.id,
-                                  "quantity",
-                                  e.target.value,
-                                )
-                              }
-                            />
+                              <CustomInput
+                                type="number"
+                                id={`quantity`}
+                                placeholder="1"
+                                value={item.quantity}
+                                onChange={(e: any) =>
+                                  handleItemChange(
+                                    item.id,
+                                    "quantity",
+                                    e.target.value,
+                                  )
+                                }
+                              />
 
-                            <CustomInput
-                              type="number"
-                              id={`unitPrice`}
-                              placeholder="0.00"
-                              value={item.unitPrice}
-                              onChange={(e: any) =>
-                                handleItemChange(
-                                  item.id,
-                                  "unitPrice",
-                                  e.target.value,
-                                )
-                              }
-                            />
+                              <CustomInput
+                                type="number"
+                                id={`unitPrice`}
+                                placeholder="0.00"
+                                value={item.unitPrice}
+                                disabled={hasSubItems}
+                                onChange={(e: any) =>
+                                  handleItemChange(
+                                    item.id,
+                                    "unitPrice",
+                                    e.target.value,
+                                  )
+                                }
+                              />
 
-                            <div className="flex items-center justify-between sm:block">
-                              <span className="text-xs text-gray-500 sm:hidden">
-                                Total
-                              </span>
-                              <p className="text-accent font-medium px-1">
-                                {form.currency} {lineTotal.toLocaleString()}
-                              </p>
+                              <div className="flex items-center justify-between sm:block">
+                                <span className="text-xs text-gray-500 sm:hidden">
+                                  Total
+                                </span>
+                                <p className="text-accent font-medium px-1">
+                                  {form.currency} {lineTotal.toLocaleString()}
+                                </p>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => removeItem(item.id)}
+                                disabled={items.length === 1}
+                                className="inline-flex items-center justify-center w-full sm:w-8 h-9 sm:h-8 rounded-md text-red-500 hover:bg-red-50 transition disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed border border-red-100 sm:border-0"
+                                aria-label="Remove item"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                <span className="ml-2 text-xs sm:hidden">
+                                  Remove item
+                                </span>
+                              </button>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => removeItem(item.id)}
-                              disabled={items.length === 1}
-                              className="inline-flex items-center justify-center w-full sm:w-8 h-9 sm:h-8 rounded-md text-red-500 hover:bg-red-50 transition disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed border border-red-100 sm:border-0"
-                              aria-label="Remove item"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              <span className="ml-2 text-xs sm:hidden">
-                                Remove item
-                              </span>
-                            </button>
+                            <div className="pl-1">
+                              <button
+                                type="button"
+                                onClick={() => toggleItemSubItems(item.id)}
+                                className="text-xs text-accent hover:underline"
+                              >
+                                {hasSubItems
+                                  ? "− Remove Subitems"
+                                  : "+ Add Subitems"}
+                              </button>
+                            </div>
+
+                            {hasSubItems && (
+                              <div className="border border-accent/15 rounded-md p-3 ml-0 sm:ml-6 bg-accent/3 space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className="text-xs font-medium text-gray-500">
+                                    Subitems
+                                  </p>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="text-xs py-2! px-2!"
+                                    leftIcon={<Plus className="w-3 h-3" />}
+                                    onClick={() => addSubItem(item.id)}
+                                  >
+                                    Add Subitem
+                                  </Button>
+                                </div>
+
+                                <div className="space-y-2">
+                                  {item.subItems!.map((sub) => (
+                                    <div
+                                      key={sub.id}
+                                      className="grid grid-cols-1 sm:grid-cols-[1fr_140px_40px] gap-2 items-center"
+                                    >
+                                      <CustomInput
+                                        type="text"
+                                        id="subItemName"
+                                        placeholder="Subitem name"
+                                        value={sub.subItemName}
+                                        onChange={(e: any) =>
+                                          handleSubItemChange(
+                                            item.id,
+                                            sub.id,
+                                            "subItemName",
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+                                      <CustomInput
+                                        type="number"
+                                        id="subItemPrice"
+                                        placeholder="0.00"
+                                        value={sub.subItemPrice}
+                                        onChange={(e: any) =>
+                                          handleSubItemChange(
+                                            item.id,
+                                            sub.id,
+                                            "subItemPrice",
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          removeSubItem(item.id, sub.id)
+                                        }
+                                        disabled={item.subItems!.length === 1}
+                                        className="inline-flex items-center justify-center w-8 h-8 rounded-md text-red-500 hover:bg-red-50 transition disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                                        aria-label="Remove subitem"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="flex items-center justify-between text-xs text-gray-500 pt-1 border-t border-accent/10">
+                                  <span>Subitems Total</span>
+                                  <span className="font-medium text-accent">
+                                    {form.currency}{" "}
+                                    {getSubItemsTotal(
+                                      item.subItems,
+                                    ).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}

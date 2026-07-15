@@ -24,11 +24,18 @@ import { createInvoice } from "@/services/invoice";
 import { useRouter } from "next/navigation";
 import { getSettings } from "@/services/settings";
 
+export type SubItem = {
+  id: string;
+  subItemName: string;
+  subItemPrice: number;
+};
+
 export type InvoiceItem = {
   id: string;
   itemName: string;
   quantity: number;
   unitPrice: number;
+  subItems?: SubItem[];
 };
 
 export const CURRENCIES = ["GHS", "USD", "EUR", "GBP"];
@@ -39,6 +46,15 @@ export const makeEmptyItem = (): InvoiceItem => ({
   quantity: 1,
   unitPrice: 0,
 });
+
+export const makeEmptySubItem = (): SubItem => ({
+  id: crypto.randomUUID(),
+  subItemName: "",
+  subItemPrice: 0,
+});
+
+export const getSubItemsTotal = (subItems: SubItem[] = []): number =>
+  subItems.reduce((sum, sub) => sum + sub.subItemPrice, 0);
 
 const getLogoSrc = (logo: imageUrls | File | null): string | null => {
   if (!logo) return null;
@@ -303,15 +319,15 @@ export default function AddInvoice() {
     value: string,
   ) => {
     setItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              [field]:
-                field === "itemName" ? value : Math.max(0, Number(value)),
-            }
-          : item,
-      ),
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        if (field === "unitPrice" && item.subItems) return item;
+
+        return {
+          ...item,
+          [field]: field === "itemName" ? value : Math.max(0, Number(value)),
+        };
+      }),
     );
   };
 
@@ -322,6 +338,84 @@ export default function AddInvoice() {
   const removeItem = (id: string) => {
     setItems((prev) =>
       prev.length === 1 ? prev : prev.filter((item) => item.id !== id),
+    );
+  };
+
+  const toggleItemSubItems = (itemId: string) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+
+        if (item.subItems) {
+          const { subItems, ...rest } = item;
+          return rest;
+        }
+
+        const nextSubItems = [makeEmptySubItem()];
+        return {
+          ...item,
+          subItems: nextSubItems,
+          unitPrice: getSubItemsTotal(nextSubItems),
+        };
+      }),
+    );
+  };
+
+  const addSubItem = (itemId: string) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        const nextSubItems = [...(item.subItems ?? []), makeEmptySubItem()];
+        return {
+          ...item,
+          subItems: nextSubItems,
+          unitPrice: getSubItemsTotal(nextSubItems),
+        };
+      }),
+    );
+  };
+
+  const removeSubItem = (itemId: string, subItemId: string) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId || !item.subItems) return item;
+        if (item.subItems.length === 1) return item;
+        const nextSubItems = item.subItems.filter((s) => s.id !== subItemId);
+        return {
+          ...item,
+          subItems: nextSubItems,
+          unitPrice: getSubItemsTotal(nextSubItems),
+        };
+      }),
+    );
+  };
+
+  const handleSubItemChange = (
+    itemId: string,
+    subItemId: string,
+    field: keyof Omit<SubItem, "id">,
+    value: string,
+  ) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId || !item.subItems) return item;
+
+        const nextSubItems = item.subItems.map((sub) =>
+          sub.id === subItemId
+            ? {
+                ...sub,
+                [field]:
+                  field === "subItemName" ? value : Math.max(0, Number(value)),
+              }
+            : sub,
+        );
+
+        return {
+          ...item,
+          subItems: nextSubItems,
+          unitPrice: getSubItemsTotal(nextSubItems),
+        };
+      }),
     );
   };
 
@@ -427,7 +521,7 @@ export default function AddInvoice() {
     formData.append("terms", String(summary.terms));
     formData.append("companySnapshot", JSON.stringify(companySnapshot));
     formData.append("invoiceItem", JSON.stringify(items));
-    
+
     if (invoiceCustomSettings.letterHeadHeaderImg instanceof File) {
       formData.append(
         "letterHeadHeaderImg",
@@ -456,6 +550,8 @@ export default function AddInvoice() {
       toast.error("Please select a client");
       return;
     }
+
+    invoiceFormBuilder(status);
 
     createInvoicesMutate(invoiceFormBuilder(status));
   };
@@ -744,100 +840,187 @@ export default function AddInvoice() {
               <div className="space-y-3">
                 {items.map((item) => {
                   const lineTotal = item.quantity * item.unitPrice;
+                  const hasSubItems = Boolean(item.subItems);
                   return (
-                    <div
-                      key={item.id}
-                      className="grid grid-cols-1 md:grid-cols-[1fr_100px_140px_140px_40px] gap-3 items-start md:items-center border border-accent/15 rounded-md p-3 md:border-0 md:p-0"
-                    >
-                      <div>
-                        <label className="block md:hidden text-xs font-medium text-gray-500 mb-1">
-                          Item Name
-                        </label>
-                        <CustomInput
-                          type="text"
-                          id={`itemName`}
-                          placeholder="Item or service name"
-                          value={item.itemName}
-                          onChange={(e: any) =>
-                            handleItemChange(
-                              item.id,
-                              "itemName",
-                              e.target.value,
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 md:contents gap-3">
+                    <div key={item.id} className="space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-[1fr_100px_140px_140px_40px] gap-3 items-start md:items-center border border-accent/15 rounded-md p-3 md:border-0 md:p-0">
                         <div>
                           <label className="block md:hidden text-xs font-medium text-gray-500 mb-1">
-                            Qty
+                            Item Name
                           </label>
                           <CustomInput
-                            type="number"
-                            id={`quantity`}
-                            placeholder="1"
-                            value={item.quantity}
+                            type="text"
+                            id={`itemName`}
+                            placeholder="Item or service name"
+                            value={item.itemName}
                             onChange={(e: any) =>
                               handleItemChange(
                                 item.id,
-                                "quantity",
+                                "itemName",
                                 e.target.value,
                               )
                             }
                           />
                         </div>
 
-                        <div>
-                          <label className="block md:hidden text-xs font-medium text-gray-500 mb-1">
-                            Unit Price
-                          </label>
-                          <CustomInput
-                            type="number"
-                            id={`unitPrice`}
-                            placeholder="0.00"
-                            value={item.unitPrice}
-                            onChange={(e: any) =>
-                              handleItemChange(
-                                item.id,
-                                "unitPrice",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
+                        <div className="grid grid-cols-2 md:contents gap-3">
+                          <div>
+                            <label className="block md:hidden text-xs font-medium text-gray-500 mb-1">
+                              Qty
+                            </label>
+                            <CustomInput
+                              type="number"
+                              id={`quantity`}
+                              placeholder="1"
+                              value={item.quantity}
+                              onChange={(e: any) =>
+                                handleItemChange(
+                                  item.id,
+                                  "quantity",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </div>
 
-                      <div className="flex items-center justify-between md:block">
-                        <div>
-                          <span className="md:hidden text-xs font-medium text-gray-500 mr-2">
-                            Total:
-                          </span>
-                          <span className="text-accent font-medium px-0 md:px-1">
-                            {formatMoney(lineTotal, form.currency)}
-                          </span>
+                          <div>
+                            <label className="block md:hidden text-xs font-medium text-gray-500 mb-1">
+                              Unit Price
+                            </label>
+                            <CustomInput
+                              type="number"
+                              id={`unitPrice`}
+                              placeholder="0.00"
+                              value={item.unitPrice}
+                              disabled={hasSubItems}
+                              onChange={(e: any) =>
+                                handleItemChange(
+                                  item.id,
+                                  "unitPrice",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between md:block">
+                          <div>
+                            <span className="md:hidden text-xs font-medium text-gray-500 mr-2">
+                              Total:
+                            </span>
+                            <span className="text-accent font-medium px-0 md:px-1">
+                              {formatMoney(lineTotal, form.currency)}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removeItem(item.id)}
+                            disabled={items.length === 1}
+                            className="md:hidden inline-flex items-center justify-center w-8 h-8 rounded-md text-red-500 hover:bg-red-50 transition disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                            aria-label="Remove item"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
 
                         <button
                           type="button"
                           onClick={() => removeItem(item.id)}
                           disabled={items.length === 1}
-                          className="md:hidden inline-flex items-center justify-center w-8 h-8 rounded-md text-red-500 hover:bg-red-50 transition disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                          className="hidden md:inline-flex items-center justify-center w-8 h-8 rounded-md text-red-500 hover:bg-red-50 transition disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
                           aria-label="Remove item"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => removeItem(item.id)}
-                        disabled={items.length === 1}
-                        className="hidden md:inline-flex items-center justify-center w-8 h-8 rounded-md text-red-500 hover:bg-red-50 transition disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-                        aria-label="Remove item"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="pl-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleItemSubItems(item.id)}
+                          className="text-xs text-accent hover:underline"
+                        >
+                          {hasSubItems ? "− Remove Subitems" : "+ Add Subitems"}
+                        </button>
+                      </div>
+
+                      {hasSubItems && (
+                        <div className="border border-accent/15 rounded-md p-3 ml-0 md:ml-6 bg-accent/3 space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs font-medium text-gray-500">
+                              Subitems
+                            </p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="text-xs py-2! px-2!"
+                              leftIcon={<Plus className="w-3 h-3" />}
+                              onClick={() => addSubItem(item.id)}
+                            >
+                              Add Subitem
+                            </Button>
+                          </div>
+
+                          <div className="space-y-2">
+                            {item.subItems!.map((sub) => (
+                              <div
+                                key={sub.id}
+                                className="grid grid-cols-1 md:grid-cols-[1fr_140px_40px] gap-2 items-center"
+                              >
+                                <CustomInput
+                                  type="text"
+                                  id="subItemName"
+                                  placeholder="Subitem name"
+                                  value={sub.subItemName}
+                                  onChange={(e: any) =>
+                                    handleSubItemChange(
+                                      item.id,
+                                      sub.id,
+                                      "subItemName",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                                <CustomInput
+                                  type="number"
+                                  id="subItemPrice"
+                                  placeholder="0.00"
+                                  value={sub.subItemPrice}
+                                  onChange={(e: any) =>
+                                    handleSubItemChange(
+                                      item.id,
+                                      sub.id,
+                                      "subItemPrice",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeSubItem(item.id, sub.id)}
+                                  disabled={item.subItems!.length === 1}
+                                  className="inline-flex items-center justify-center w-8 h-8 rounded-md text-red-500 hover:bg-red-50 transition disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                                  aria-label="Remove subitem"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs text-gray-500 pt-1 border-t border-accent/10">
+                            <span>Subitems Total</span>
+                            <span className="font-medium text-accent">
+                              {formatMoney(
+                                getSubItemsTotal(item.subItems),
+                                form.currency,
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1537,25 +1720,51 @@ export default function AddInvoice() {
                           {items
                             .filter((item) => item.itemName.trim() !== "")
                             .map((item) => (
-                              <div
-                                key={item.id}
-                                className="grid grid-cols-[1fr_50px_90px_90px] gap-x-4 sm:gap-x-10 text-sm px-3 sm:px-7 mt-1"
-                              >
-                                <span className="truncate text-accent">
-                                  {item.itemName}
-                                </span>
-                                <span className="text-right text-accent">
-                                  {item.quantity}
-                                </span>
-                                <span className="text-right text-accent">
-                                  {formatMoney(item.unitPrice, form.currency)}
-                                </span>
-                                <span className="text-right font-medium text-accent">
-                                  {formatMoney(
-                                    item.quantity * item.unitPrice,
-                                    form.currency,
+                              <div key={item.id} className="px-3 sm:px-7 mt-1">
+                                <div className="grid grid-cols-[1fr_50px_90px_90px] gap-x-4 sm:gap-x-10 text-sm">
+                                  <span className="truncate text-accent">
+                                    {item.itemName}
+                                  </span>
+                                  <span className="text-right text-accent">
+                                    {item.quantity}
+                                  </span>
+                                  <span className="text-right text-accent">
+                                    {formatMoney(item.unitPrice, form.currency)}
+                                  </span>
+                                  <span className="text-right font-medium text-accent">
+                                    {formatMoney(
+                                      item.quantity * item.unitPrice,
+                                      form.currency,
+                                    )}
+                                  </span>
+                                </div>
+                                {item.subItems &&
+                                  item.subItems.filter(
+                                    (s) => s.subItemName.trim() !== "",
+                                  ).length > 0 && (
+                                    <div className="mt-0.5 space-y-0.5">
+                                      {item.subItems
+                                        .filter(
+                                          (s) => s.subItemName.trim() !== "",
+                                        )
+                                        .map((s) => (
+                                          <div
+                                            key={s.id}
+                                            className="flex items-center justify-between text-xs text-gray-500 pl-3"
+                                          >
+                                            <span className="truncate">
+                                              — {s.subItemName}
+                                            </span>
+                                            <span>
+                                              {formatMoney(
+                                                s.subItemPrice,
+                                                form.currency,
+                                              )}
+                                            </span>
+                                          </div>
+                                        ))}
+                                    </div>
                                   )}
-                                </span>
                               </div>
                             ))}
                           {items.every(
