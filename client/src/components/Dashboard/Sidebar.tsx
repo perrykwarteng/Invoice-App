@@ -77,8 +77,8 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
       route.push("/login");
     },
 
-    onError: () => {
-      toast.error("Sorry Failed to logout");
+    onError: (data) => {
+      toast.error(toast.error(data.message));
     },
   });
 
@@ -111,7 +111,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
       >
         <div
           className="
-          flex items-center justify-between
+          flex items-center gap-x-1 justify-between
           border-b border-accent/10
           px-6 py-5
           h-20
@@ -122,16 +122,15 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
           </h1>
 
           <div className="flex items-center gap-2">
-            {/* Desktop collapse */}
             <button
               className="
                 hidden lg:block
-                rounded-md p-2
+                rounded-md p-1
                 hover:bg-accent/10
               "
               onClick={() => setCollapseNav(!collapseNav)}
             >
-              <PanelLeftClose className="h-5 w-5 text-accent" />
+              <PanelLeftClose className={`h-5 w-5 text-accent ${collapseNav? "rotate-180": ""}`} />
             </button>
 
             <button
