@@ -6,7 +6,11 @@ import {
   deleteFromCloudinary,
   uploadToCloudinary,
 } from "../services/fileUpload.js";
-import { CompanySnapshot, InvoiceCustomization } from "../types/types.js";
+import {
+  CompanySnapshot,
+  InvoiceCustomization,
+  Items,
+} from "../types/types.js";
 import { clients } from "../config/db/tables/clients.js";
 import { db } from "../config/db/index.js";
 import { settings } from "../config/db/tables/settings.js";
@@ -14,6 +18,7 @@ import { invoices } from "../config/db/tables/invoice.js";
 import { invoiceItems } from "../config/db/tables/invoiceItem.js";
 import { users } from "../config/db/tables/users.js";
 import { invoiceCustomizations } from "../config/db/tables/invoiceCustomization.js";
+import { subItems } from "../config/db/tables/subItem.js";
 
 export const createInvoice = async (req: Request, res: Response) => {
   const authUser = req.user as AuthUser;
@@ -38,6 +43,7 @@ export const createInvoice = async (req: Request, res: Response) => {
     invoiceItem,
   } = req.body;
   const file: any = req.files as Express.Multer.File[];
+  console.log(invoiceItem);
 
   if (!authUser.organisationId)
     return res.status(400).json({ message: "Sorry no organisation found" });
@@ -349,38 +355,61 @@ export const createInvoice = async (req: Request, res: Response) => {
           totalPrice: String(Number(item.quantity) * Number(item.unitPrice)),
         }));
 
-        await tx.insert(invoiceItems).values(itemsToInsert);
+        const item = await tx
+          .insert(invoiceItems)
+          .values(itemsToInsert)
+          .$returningId();
 
-        await tx.insert(invoiceCustomizations).values({
-          invoiceId: Number(invoiceId),
-          primaryColor: customization.primaryColor,
-          secondaryColor: customization.secondaryColor,
-          letterHeadHeaderImg: {
-            imageUrl: letterHeaderImage.imageUrl || "",
-            public_id: letterHeaderImage.public_id || "",
-          },
-          letterHeadFooterImg: {
-            imageUrl: letterFooterImage.imageUrl || "",
-            public_id: letterFooterImage.public_id || "",
-          },
-          signatureImg: {
-            imageUrl: signatureImage.imageUrl || "",
-            public_id: signatureImage.public_id || "",
-          },
-          showLogo: customization.showLogo,
-          showLetterHead: customization.showLetterHead,
-          showSignature: customization.showSignature,
-          showCompanySnapshot: customization.showCompanySnapshot,
-          showPaymentMethods: customization.showPaymentMethods,
-          showNotes: customization.showNotes,
-          showTerms: customization.showTerms,
-          showItemTable: customization.showItemTable,
-        });
+        const itemId = item;
 
-        await tx.update(settings).set({
-          nextInvoiceNumber: Number(nextNumber),
-        });
+        const allSubItems = [];
+
+        for (let i = 0; i < invoiceItemArr.length; i++) {
+          const invoiceItemId = itemId[i]?.id;
+
+          const subs = invoiceItemArr[i].subItems ?? [];
+
+          for (const sub of subs) {
+            allSubItems.push({
+              invoiceItemId: Number(invoiceItemId),
+              subItemName: sub.subItemName,
+              subItemPrice: sub.subItemPrice,
+            });
+          }
+        }
+
+        if (allSubItems.length) {
+          await tx.insert(subItems).values(allSubItems);
+        }
       }
+      await tx.update(settings).set({
+        nextInvoiceNumber: Number(nextNumber),
+      });
+      await tx.insert(invoiceCustomizations).values({
+        invoiceId: Number(invoiceId),
+        primaryColor: customization.primaryColor,
+        secondaryColor: customization.secondaryColor,
+        letterHeadHeaderImg: {
+          imageUrl: letterHeaderImage.imageUrl || "",
+          public_id: letterHeaderImage.public_id || "",
+        },
+        letterHeadFooterImg: {
+          imageUrl: letterFooterImage.imageUrl || "",
+          public_id: letterFooterImage.public_id || "",
+        },
+        signatureImg: {
+          imageUrl: signatureImage.imageUrl || "",
+          public_id: signatureImage.public_id || "",
+        },
+        showLogo: customization.showLogo,
+        showLetterHead: customization.showLetterHead,
+        showSignature: customization.showSignature,
+        showCompanySnapshot: customization.showCompanySnapshot,
+        showPaymentMethods: customization.showPaymentMethods,
+        showNotes: customization.showNotes,
+        showTerms: customization.showTerms,
+        showItemTable: customization.showItemTable,
+      });
     });
 
     res.status(201).json({
@@ -466,7 +495,34 @@ export const getInvoiceById = async (req: Request, res: Response) => {
     const items = await db
       .select()
       .from(invoiceItems)
+      .leftJoin(subItems, eq(invoiceItems.id, subItems.invoiceItemId))
       .where(eq(invoiceItems.invoiceId, invoice.id));
+
+    const result: Record<number, any> = {};
+
+    items.forEach((curr) => {
+      const id = curr.invoice_items.id;
+
+      if (!result[id]) {
+        result[id] = {
+          ...curr.invoice_items,
+          subItems: [],
+        };
+      }
+
+      if (curr.sub_item?.id) {
+        result[id].subItems.push({
+          id: curr.sub_item.id,
+          invoiceItemId: curr.sub_item.invoiceItemId,
+          subItemName: curr.sub_item.subItemName,
+          subItemPrice: curr.sub_item.subItemPrice,
+          createdAt: curr.sub_item.createdAt,
+          updatedAt: curr.sub_item.updatedAt,
+        });
+      }
+    });
+
+    const formattedItems = Object.values(result);
 
     const [user] = await db
       .select()
@@ -510,7 +566,7 @@ export const getInvoiceById = async (req: Request, res: Response) => {
           createdAt: invoice.createdAt,
           updatedAt: invoice.updatedAt,
         },
-        items,
+        items: formattedItems,
         invoiceCustomization,
       },
     });
@@ -890,6 +946,15 @@ export const editInvoice = async (req: Request, res: Response) => {
       }
 
       if (invoiceItemArr) {
+        const invoiceItemsFound = await tx
+          .select({ id: invoiceItems.id })
+          .from(invoiceItems)
+          .where(eq(invoiceItems.invoiceId, Number(id)));
+
+        for (const item of invoiceItemsFound) {
+          await tx.delete(subItems).where(eq(subItems.invoiceItemId, item.id));
+        }
+
         await tx
           .delete(invoiceItems)
           .where(eq(invoiceItems.invoiceId, Number(id)));
@@ -906,7 +971,30 @@ export const editInvoice = async (req: Request, res: Response) => {
           };
         });
 
-        await tx.insert(invoiceItems).values(itemsToInsert);
+        const insertedItems = await tx
+          .insert(invoiceItems)
+          .values(itemsToInsert)
+          .$returningId();
+
+        const allSubItems = [];
+
+        for (let i = 0; i < invoiceItemArr.length; i++) {
+          const invoiceItemId = insertedItems[i]?.id;
+
+          const subs = invoiceItemArr[i].subItems ?? [];
+
+          for (const sub of subs) {
+            allSubItems.push({
+              invoiceItemId: Number(invoiceItemId),
+              subItemName: sub.subItemName,
+              subItemPrice: sub.subItemPrice,
+            });
+          }
+        }
+
+        if (allSubItems.length) {
+          await tx.insert(subItems).values(allSubItems);
+        }
       }
 
       const hasCustomizationChange =

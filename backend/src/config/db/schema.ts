@@ -3,6 +3,7 @@ export * from "./tables/users.js";
 export * from "./tables/clients.js";
 export * from "./tables/invoice.js";
 export * from "./tables/invoiceItem.js";
+export * from "./tables/subItem.js";
 export * from "./tables/settings.js";
 export * from "./tables/otps.js";
 export * from "./tables/invoiceCustomization.js";

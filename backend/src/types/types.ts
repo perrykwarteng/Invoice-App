@@ -54,3 +54,21 @@ export type InvoiceCus = {
   letterHeadFooterImg: imageUrls;
   signatureImg: imageUrls;
 };
+
+export type SubItems = {
+  id: number;
+  invoiceItemId: number;
+  subItemName: string;
+  subItemPrice: string;
+};
+
+export type Items = {
+  id: number;
+  invoiceId: number;
+  itemName: string;
+  quantity: string;
+  unitPrice: string;
+  totalPrice: string;
+  createdAt: string;
+  updatedAt: string;
+};
