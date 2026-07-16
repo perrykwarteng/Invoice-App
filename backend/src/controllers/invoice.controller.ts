@@ -437,9 +437,32 @@ export const listInvoices = async (req: Request, res: Response) => {
     const results = await db
       .select()
       .from(invoices)
+      .leftJoin(
+        clients,
+        and(
+          eq(clients.id, invoices.clientId),
+          eq(clients.organisationId, invoices.organisationId),
+        ),
+      )
       .where(eq(invoices.organisationId, organisationId))
       .limit(limit)
       .offset(offset);
+
+    const formattedResults = results.map(({ invoices, clients }) => ({
+      ...invoices,
+      client: clients
+        ? {
+            id: clients.id,
+            organisationId: clients.organisationId,
+            createdBy: clients.createdBy,
+            name: clients.name,
+            email: clients.email,
+            address: clients.address,
+            createdAt: clients.createdAt,
+            updatedAt: clients.updatedAt,
+          }
+        : null,
+    }));
 
     const totalCount = await db.$count(
       invoices,
@@ -453,7 +476,7 @@ export const listInvoices = async (req: Request, res: Response) => {
       count: results.length,
       totalCount,
       totalPages: Math.max(Math.ceil(totalCount / limit), 1),
-      data: results,
+      data: formattedResults,
     });
   } catch (error) {
     console.error(error);
