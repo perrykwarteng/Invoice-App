@@ -6,10 +6,6 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "workspaces": [
-    "client",
-    "backend"
-  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/perrykwarteng/Invoice-App.git"
