@@ -98,6 +98,17 @@ export type Invoice = {
   notes: string;
 
   companySnapshot: CompanySnapshot;
+
+  client?: {
+    id: number;
+    organisationId: number;
+    createdBy: number;
+    name: string;
+    email: string;
+    address: string;
+    createdAt: string;
+    updatedAt: string;
+  };
 };
 
 export interface SingleInvoice {

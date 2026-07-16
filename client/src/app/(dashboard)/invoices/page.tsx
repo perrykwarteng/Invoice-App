@@ -844,10 +844,10 @@ export default function Invoice() {
                 render: (invoice) => (
                   <div className="flex flex-col">
                     <span className="font-medium text-gray-800">
-                      {invoice.companySnapshot?.name}
+                      {invoice.client?.name}
                     </span>
                     <span className="text-xs text-gray-500">
-                      {invoice.companySnapshot?.address}
+                      {invoice.client?.address}
                     </span>
                   </div>
                 ),

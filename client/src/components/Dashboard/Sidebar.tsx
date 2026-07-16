@@ -18,6 +18,7 @@ import { onLogout } from "@/services/auth";
 import { toast } from "sonner";
 import { useUserStore } from "@/store/useUserStore";
 import { ConfirmationModal } from "../ui/confirmationModal";
+import { useSidebarStore } from "@/store/useSidebarToggleStore";
 
 interface SidebarProps {
   mobileOpen: boolean;
@@ -60,11 +61,11 @@ const menuItems = [
 export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
   const { userInfo } = useUserStore();
   const userRole = userInfo.user.role;
+  const { toggle, setToggle } = useSidebarStore();
 
   const path = usePathname();
   const route = useRouter();
 
-  const [collapseNav, setCollapseNav] = useState(false);
   const [openLogout, setOpenLogout] = useState(false);
 
   const { mutate: LogoutMutate, isPending } = useMutation({
@@ -106,7 +107,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
 
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
 
-          ${collapseNav ? "lg:w-20" : "lg:w-72"}
+          ${toggle ? "lg:w-20" : "lg:w-72"}
         `}
       >
         <div
@@ -118,7 +119,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
         "
         >
           <h1 className="text-xl font-bold text-accent">
-            {collapseNav ? "SI" : "SwiftInvoice"}
+            {toggle ? "SI" : "SwiftInvoice"}
           </h1>
 
           <div className="flex items-center gap-2">
@@ -128,9 +129,11 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                 rounded-md p-1
                 hover:bg-accent/10
               "
-              onClick={() => setCollapseNav(!collapseNav)}
+              onClick={() => setToggle()}
             >
-              <PanelLeftClose className={`h-5 w-5 text-accent ${collapseNav? "rotate-180": ""}`} />
+              <PanelLeftClose
+                className={`h-5 w-5 text-accent ${toggle ? "rotate-180" : ""}`}
+              />
             </button>
 
             <button
@@ -182,7 +185,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                         "
                       />
 
-                      {!collapseNav && <span>{item.title}</span>}
+                      {!toggle && <span>{item.title}</span>}
                     </Link>
                   </li>
                 );
@@ -211,7 +214,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
               transition-all
             "
           >
-            {!collapseNav && <p>Logout</p>}
+            {!toggle && <p>Logout</p>}
 
             <SquareArrowRightExit className="w-4 h-4" />
           </button>
