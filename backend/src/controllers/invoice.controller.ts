@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { AuthUser } from "../types/auth.js";
-import { and, count, eq, gte, lt, lte, ne } from "drizzle-orm";
+import { and, count, eq, gte, lt, lte } from "drizzle-orm";
 
 import {
   deleteFromCloudinary,
@@ -267,7 +267,7 @@ export const createInvoice = async (req: Request, res: Response) => {
             imageUrl: companySnapshotObj.logo.imageUrl,
             public_id: companySnapshotObj.logo.public_id,
           }
-        : { imageUrl: null, public_id: null };
+        : {};
 
     const letterHeaderImage = uploadResults.letterHeadHeaderImg
       ? {
@@ -311,7 +311,10 @@ export const createInvoice = async (req: Request, res: Response) => {
       address: companySnapshotObj?.address,
       invoicePrefix: companySnapshotObj?.invoicePrefix,
       paymentMethods: companySnapshotObj?.paymentMethods,
-      logo,
+      logo: {
+        imageUrl: logo.imageUrl || "",
+        public_id: logo.public_id || "",
+      },
     };
 
     let invoiceId: number | undefined;
@@ -851,11 +854,10 @@ export const editInvoice = async (req: Request, res: Response) => {
         }
       : {
           imageUrl:
-            (existingCustomization as any)?.letterHeadHeaderImg?.imageUrl ??
-            null,
+            (existingCustomization as any)?.letterHeadHeaderImg?.imageUrl ?? "",
           public_id:
             (existingCustomization as any)?.letterHeadHeaderImg?.public_id ??
-            null,
+            "",
         };
 
     const letterHeadFooterImage = uploadResults.letterHeadFooterImg
@@ -865,11 +867,10 @@ export const editInvoice = async (req: Request, res: Response) => {
         }
       : {
           imageUrl:
-            (existingCustomization as any)?.letterHeadFooterImg?.imageUrl ??
-            null,
+            (existingCustomization as any)?.letterHeadFooterImg?.imageUrl ?? "",
           public_id:
             (existingCustomization as any)?.letterHeadFooterImg?.public_id ??
-            null,
+            "",
         };
 
     const signatureImage = uploadResults.signatureImg
@@ -879,9 +880,9 @@ export const editInvoice = async (req: Request, res: Response) => {
         }
       : {
           imageUrl:
-            (existingCustomization as any)?.signatureImg?.imageUrl ?? null,
+            (existingCustomization as any)?.signatureImg?.imageUrl ?? "",
           public_id:
-            (existingCustomization as any)?.signatureImg?.public_id ?? null,
+            (existingCustomization as any)?.signatureImg?.public_id ?? '',
         };
 
     const snapShot: CompanySnapshot = {
@@ -900,7 +901,10 @@ export const editInvoice = async (req: Request, res: Response) => {
       paymentMethods:
         companySnapshotObj?.paymentMethods ??
         (existingInvoice.companySnapshot as any)?.paymentMethods,
-      logo,
+      logo: {
+        imageUrl: logo.imageUrl || "",
+        public_id: logo.public_id || "",
+      },
     };
 
     const updateValues: Record<string, any> = {};
