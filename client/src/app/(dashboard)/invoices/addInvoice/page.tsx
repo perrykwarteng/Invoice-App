@@ -40,15 +40,20 @@ export type InvoiceItem = {
 
 export const CURRENCIES = ["GHS", "USD", "EUR", "GBP"];
 
+const generateId = () =>
+  typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : Math.random().toString(36).substring(2);
+
 export const makeEmptyItem = (): InvoiceItem => ({
-  id: crypto.randomUUID(),
+  id: generateId(),
   itemName: "",
   quantity: 1,
   unitPrice: 0,
 });
 
 export const makeEmptySubItem = (): SubItem => ({
-  id: crypto.randomUUID(),
+  id: generateId(),
   subItemName: "",
   subItemPrice: 0,
 });
@@ -59,11 +64,10 @@ export const getSubItemsTotal = (subItems: SubItem[] = []): number =>
 const getLogoSrc = (logo: imageUrls | File | null): string | null => {
   if (!logo) return null;
 
-  if (logo instanceof File) {
+  if (typeof File !== "undefined" && logo instanceof File) {
     return URL.createObjectURL(logo);
   }
-
-  return logo.imageUrl;
+  return (logo as imageUrls).imageUrl;
 };
 
 const getAssetSrc = (asset: unknown): string | null => {

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 export interface token {
   accessToken: string;
@@ -14,6 +14,6 @@ export const useAccessToken = create<token>()(
         set(() => ({ accessToken: token }));
       },
     }),
-    { name: "access-token" },
+    { name: "access-token", storage: createJSONStorage(() => localStorage) },
   ),
 );

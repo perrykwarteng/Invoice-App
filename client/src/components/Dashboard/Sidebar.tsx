@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { SquareArrowRightExit } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, Dispatch, SetStateAction } from "react";
+import { useState, Dispatch, SetStateAction, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { onLogout } from "@/services/auth";
 import { toast } from "sonner";
@@ -60,7 +60,7 @@ const menuItems = [
 
 export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
   const { userInfo } = useUserStore();
-  const userRole = userInfo.user.role;
+  const userRole = userInfo.user.role ?? "";
   const { toggle, setToggle } = useSidebarStore();
 
   const path = usePathname();
@@ -155,7 +155,11 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
               .filter((item) => item.role.includes(userRole))
               .map((item) => {
                 const Icon = item.icon;
-                const activeNav = path === item.href;
+                const normalizedPath = path.replace(/\/$/, "");
+
+                const activeNav =
+                  normalizedPath === item.href ||
+                  normalizedPath.startsWith(`${item.href}/`);
 
                 return (
                   <li key={item.href}>

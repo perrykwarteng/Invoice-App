@@ -22,7 +22,7 @@ import { toast } from "sonner";
 export default function Clients() {
   const queryClient = useQueryClient();
   const { userInfo } = useUserStore();
-  const userRole = userInfo.user.role;
+  const userRole = userInfo.user.role ?? "";
   const { data: clientData = [], isLoading } = useQuery({
     queryKey: ["Clients"],
     queryFn: getClient,

@@ -1,6 +1,6 @@
 import { OrgSettingsType, PaymentMethod } from "@/types/types";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 type SettingsType = OrgSettingsType;
 
@@ -45,6 +45,6 @@ export const useSettingsStore = create<Settings>()(
         set(() => ({ orgSettings: sett }));
       },
     }),
-    { name: "org-settings" },
+    { name: "org-settings", storage: createJSONStorage(() => localStorage) },
   ),
 );

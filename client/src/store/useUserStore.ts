@@ -1,6 +1,6 @@
 import { User, UserOrg } from "@/types/types";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 export interface userDetails {
   userInfo: UserOrg;
@@ -41,6 +41,6 @@ export const useUserStore = create<userDetails>()(
         set(() => ({ user: user }));
       },
     }),
-    { name: "user-info" },
+    { name: "user-info", storage: createJSONStorage(() => localStorage) },
   ),
 );

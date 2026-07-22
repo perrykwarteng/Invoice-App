@@ -5,7 +5,7 @@ import CustomInput from "@/components/ui/Input";
 import Image from "next/image";
 import Link from "next/link";
 import AuthImage from "@/assets/images/authImage.jpg";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { resetPassword } from "@/services/auth";
@@ -13,9 +13,12 @@ import { toast } from "sonner";
 
 export default function ResetPassword() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
 
-  const email =
-    (typeof window !== "undefined" ? localStorage.getItem("email") : "") || "";
+  useEffect(() => {
+    const storedEmail = localStorage.getItem("email") || "";
+    setEmail(storedEmail);
+  }, []);
 
   const [form, setForm] = useState({
     password: "",
